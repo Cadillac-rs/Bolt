@@ -1,6 +1,6 @@
 package server.game.player.skill;
 
-public class SkillSet {
+public final class SkillSet {
 
 	/**
 	 * Creates a new SkillSet
@@ -8,12 +8,8 @@ public class SkillSet {
 	public SkillSet() {
 		// Set all skills to 1, and Hitpoints to 10.
 		for (int i = 0; i < skills.length; i++) {
-			if (i == 3) { // Hitpoints.
-				skills[i].setLevel(10, true);
-				skills[i].setExperience(1154);
-			} else {
-				skills[i].setLevel(1, true);
-			}
+			skills[i] = new Skill();
+			skills[i].setRealLevelAndExperience(i == 3 ? 10 : 1, true);
 		}
 	}
 	
@@ -22,13 +18,18 @@ public class SkillSet {
 	 */
 	private final Skill[] skills = new Skill[24];
 
-	public Skill[] getSkills() {
-		return skills;
+	
+	public Skill get(int index) {
+		return skills[index];
 	}
 	
 	public void setSkills(Skill[] loaded) {
 		for (int i = 0; i < skills.length; i++) {
 			skills[i] = loaded[i];
 		}
+	}
+	
+	public Skill[] getSkills() {
+		return skills;
 	}
 }

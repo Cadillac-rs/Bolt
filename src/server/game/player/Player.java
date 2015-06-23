@@ -16,7 +16,6 @@ package server.game.player;
  * along with RuneSource.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +26,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 
 import server.Server;
@@ -37,10 +35,14 @@ import server.game.item.Item;
 import server.game.npc.Npc;
 import server.game.player.skill.Skill;
 import server.game.player.skill.SkillSet;
+import server.game.player.skill.task.SkillLogic;
 import server.net.ReceivedPacket;
+import server.net.message.MessageHandler;
 import server.net.util.ISAACCipher;
 import server.net.util.StreamBuffer;
+import server.net.util.StreamBuffer.InBuffer;
 import server.util.Misc;
+import server.util.MutableNumber;
 
 /**
  * Represents a logged-in 
@@ -66,6 +68,8 @@ public class Player extends Entity {
 	 * The object containing the player's skills.
 	 */
 	private final SkillSet skills = new SkillSet();
+	
+	
 	
 	private int primaryDirection = -1;
 	private int secondaryDirection = -1;
@@ -120,12 +124,10 @@ public class Player extends Entity {
 	public void processQueuedPackets() {
 		ReceivedPacket packet = null;
 		while((packet = queuedPackets.poll()) != null) {
-			handlePacket(packet.getOpcode(), packet.getSize(), StreamBuffer.OutBuffer.newInBuffer(packet.getPayload()));
+			MessageHandler.decode(this, StreamBuffer.OutBuffer.newInBuffer(packet.getPayload()), packet);
 		}
 	}
 	
-	
-
 	/**
 	 * Sends all skills to the client.
 	 */
@@ -249,191 +251,7 @@ public class Player extends Entity {
 		return getFriends().contains(friend);
 	}
 	
-	/**
-	 * Handles the current packet.
-	 */
-	private void handlePacket(int packetOpcode, int packetLength, StreamBuffer.InBuffer in) {
-		// Handle the packet.
-		try {
-			switch (packetOpcode) {
-			case 145: // Remove item.
-				int interfaceID = in.readShort(StreamBuffer.ValueType.A);
-				int slot = in.readShort(StreamBuffer.ValueType.A);
-				in.readShort(StreamBuffer.ValueType.A); // Item ID.
-				if (interfaceID == 1688) {
-					unequip(slot);
-				}
-				break;
-			case 41: // Equip item.
-				in.readShort(); // Item ID.
-				slot = in.readShort(StreamBuffer.ValueType.A);
-				in.readShort(); // Interface ID.
-				equip(slot);
-				break;
-			case 185: // Button clicking.
-				handleButton(Misc.hexToInt(in.readBytes(2)));
-				break;
-			case 4: // Player chat.
-				int effects = in.readByte(false, StreamBuffer.ValueType.S);
-				int color = in.readByte(false, StreamBuffer.ValueType.S);
-				int chatLength = (packetLength - 2);
-				byte[] text = in.readBytesReverse(chatLength, StreamBuffer.ValueType.A);
-				setChatEffects(effects);
-				setChatColor(color);
-				setChatText(text);
-				setChatUpdateRequired(true);
-				break;
-			case 103: // Player command.
-				String command = in.readString();
-				String[] split = command.split(" ");
-				handleCommand(split[0].toLowerCase(), Arrays.copyOfRange(split, 1, split.length));
-				break;
-			case 248: // Movement.
-			case 164: // ^
-			case 98: // ^
-				int length = packetLength;
-				if (packetOpcode == 248) {
-					length -= 14;
-				}
-				int steps = (length - 5) / 2;
-				int[][] path = new int[steps][2];
-				int firstStepX = in.readShort(StreamBuffer.ValueType.A, StreamBuffer.ByteOrder.LITTLE);
-				for (int i = 0; i < steps; i++) {
-					path[i][0] = in.readByte();
-					path[i][1] = in.readByte();
-				}
-				int firstStepY = in.readShort(StreamBuffer.ByteOrder.LITTLE);
-
-				getMovementHandler().reset();
-				getMovementHandler().setRunPath(in.readByte(StreamBuffer.ValueType.C) == 1);
-				getMovementHandler().addToPath(new Position(firstStepX, firstStepY));
-				for (int i = 0; i < steps; i++) {
-					path[i][0] += firstStepX;
-					path[i][1] += firstStepY;
-					getMovementHandler().addToPath(new Position(path[i][0], path[i][1]));
-				}
-				getMovementHandler().finish();
-				break;
-			case 95: // Chat option changing
-				byte status = (byte) in.readByte();
-				if (status >= 0 && status <= 3) {
-					setPublicChat(status);
-				}
-				status = (byte) in.readByte();
-				if (status >= 0 && status <= 3) {
-					setPrivateChat(status);
-					encoder.updateOtherFriends(getPrivateChat());
-				}
-				status = (byte) in.readByte();
-				if (status >= 0 && status <= 3) {
-					setTradeCompete(status);
-				}
-				break;
-			case 188: // Add friend
-				long friend = in.readLong();
-				if(getFriends().size() >= 200) {
-					encoder.sendMessage("Friends list is full.");
-					break;
-				}
-				if(getFriends().contains(friend)) {
-					encoder.sendMessage("That player is already on your friends list.");
-					break;
-				}
-				getFriends().add(friend);
-				Player plr = PlayerHandler.getPlayerByName(Misc.longToName(friend));
-				byte world = 0;
-				if(plr != null) {
-					if(plr.getPrivateChat() == 0) {
-						world = Server.getSingleton().getWorld();
-					} else if(plr.getPrivateChat() == 1) {
-						if(plr.hasFriend(Misc.nameToLong(getUsername()))) {
-							world = Server.getSingleton().getWorld();
-						}
-					}
-					if(getPrivateChat() == 1 && plr.hasFriend(Misc.nameToLong(getUsername()))) {
-						plr.encoder.sendFriendUpdate(Misc.nameToLong(getUsername()), Server.getSingleton().getWorld());
-					}
-				}
-				encoder.sendFriendUpdate(friend, world);
-				break;
-			case 215: // Remove friend
-				friend = in.readLong();
-				if(!getFriends().contains(friend)) {
-					encoder.sendMessage("That player is not on your friends list.");
-					break;
-				}
-				getFriends().remove(friend);
-				if(getPrivateChat() == 1) {
-					plr = PlayerHandler.getPlayerByName(Misc.longToName(friend));
-					if(plr != null) {
-						plr.encoder.sendFriendUpdate(Misc.nameToLong(getUsername()), (byte)0);
-					}
-				}
-				break;
-			case 126: // Send pm
-				friend = in.readLong();
-				if(!getFriends().contains(friend)) {
-					encoder.sendMessage("That player is not on your friends list.");
-					break;
-				}
-				plr = PlayerHandler.getPlayerByName(Misc.longToName(friend));
-				if(plr == null) {
-					encoder.sendMessage("That player is currently offline.");
-					break;
-				}
-				int size = packetLength - 8;
-				byte[] message = in.readBytes(size);
-				plr.encoder.sendPrivateMessage(Misc.nameToLong(getUsername()), (byte) getStaffRights(), message);
-				break;
-			case 74: // Remove ignore
-				long ignore = in.readLong();
-				if(!getIgnores().contains(ignore)) {
-					encoder.sendMessage("That player is not on your ignore list.");
-					break;
-				}
-				getIgnores().remove(ignore);
-				break;
-			case 133: // Add ignore
-				ignore = in.readLong();
-				if(getIgnores().size() >= 100) {
-					encoder.sendMessage("Ignore list is full.");
-					break;
-				}
-				if(getIgnores().contains(ignore)) {
-					encoder.sendMessage("That player is already on your ignore list.");
-					break;
-				}
-				getIgnores().add(ignore);
-				break;
-			case 0: // Empty packets
-			case 3:
-			case 202:
-			case 77:
-			case 86:
-			case 78:
-			case 36:
-			case 226:
-			case 246:
-			case 148:
-			case 183:
-			case 230:
-			case 136:
-			case 189:
-			case 152:
-			case 200:
-			case 85:
-			case 165:
-			case 238:
-			case 150:
-				break;
-			default:
-				System.out.println(this + " unhandled packet received " + packetOpcode + " - " + packetLength);
-				break;
-			}
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-	}
+	
 	
 	public PacketEncoder getEncoder() {
 		return encoder;
@@ -1157,5 +975,6 @@ public class Player extends Entity {
 	public Channel getChannel() {
 		return channel;
 	}
+	
 
 }
