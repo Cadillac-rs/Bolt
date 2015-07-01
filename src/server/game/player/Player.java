@@ -18,7 +18,6 @@ package server.game.player;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -28,21 +27,18 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.jboss.netty.channel.Channel;
 
-import server.Server;
 import server.game.Position;
-import server.game.entity.Entity;
 import server.game.item.Item;
 import server.game.npc.Npc;
-import server.game.player.skill.Skill;
 import server.game.player.skill.SkillSet;
-import server.game.player.skill.task.SkillLogic;
+import server.game.world.Positionable;
+import server.game.world.Task;
+import server.game.world.entity.Entity;
 import server.net.ReceivedPacket;
 import server.net.message.MessageHandler;
 import server.net.util.ISAACCipher;
 import server.net.util.StreamBuffer;
-import server.net.util.StreamBuffer.InBuffer;
 import server.util.Misc;
-import server.util.MutableNumber;
 
 /**
  * Represents a logged-in 
@@ -69,11 +65,8 @@ public class Player extends Entity {
 	 */
 	private final SkillSet skills = new SkillSet();
 	
-	
-	
 	private int primaryDirection = -1;
 	private int secondaryDirection = -1;
-	private int slot = -1;
 	private int staffRights = 0;
 	private int chatColor;
 	private int chatEffect;
@@ -136,8 +129,6 @@ public class Player extends Entity {
 			encoder.sendSkill(i, skills.getSkills()[i].getLevel(), (int)skills.getSkills()[i].getExperience());
 		}
 	}
-	
-	
 
 	/**
 	 * Sends all equipment.
@@ -152,8 +143,6 @@ public class Player extends Entity {
 			}
 		}
 	}
-
-	
 
 	/**
 	 * Sends the current full inventory.
@@ -177,81 +166,9 @@ public class Player extends Entity {
 		encoder.send(out.getBuffer());
 	}
 
-
-	/**
-	 * Handles a clicked button.
-	 * 
-	 * @param buttonId
-	 *            the button ID
-	 */
-	private void handleButton(int buttonId) {
-		switch (buttonId) {
-		case 9154:
-			encoder.sendLogout();
-			break;
-		case 153:
-			getMovementHandler().setRunToggled(true);
-			break;
-		case 152:
-			getMovementHandler().setRunToggled(false);
-			break;
-		case 5451:
-		case 5452:
-			setBrightness((byte) 0);
-			break;
-		case 6273:
-		case 6157:
-			setBrightness((byte) 1);
-			break;
-		case 6275:
-		case 6274:
-			setBrightness((byte) 2);
-			break;
-		case 6277:
-		case 6276:
-			setBrightness((byte) 3);
-			break;
-		case 6279:
-			setMouseButtons(true);
-			break;
-		case 6278:
-			setMouseButtons(false);
-			break;
-		case 6280:
-			setChatEffects(true);
-			break;
-		case 6281:
-			setChatEffects(false);
-			break;
-		case 952:
-			setSplitScreen(true);
-			break;
-		case 953:
-			setSplitScreen(false);
-			break;
-		case 12591:
-			setAcceptAid(true);
-			break;
-		case 12590:
-			setAcceptAid(false);
-			break;
-		case 150:
-			setRetaliate(true);
-			break;
-		case 151:
-			setRetaliate(false);
-			break;
-		default:
-			System.out.println("Unhandled button: " + buttonId);
-			break;
-		}
-	}
-
 	public boolean hasFriend(long friend) {
 		return getFriends().contains(friend);
 	}
-	
-	
 	
 	public PacketEncoder getEncoder() {
 		return encoder;
@@ -283,7 +200,6 @@ public class Player extends Entity {
 		getColors()[2] = 9;
 		getColors()[3] = 5;
 		getColors()[4] = 0;
-
 			
 	}
 
@@ -293,69 +209,9 @@ public class Player extends Entity {
 	 * @throws Exception
 	 */
 	public void process() {
-		// If no packet for more than 5 seconds, disconnect.
-		/*if (getTimeoutStopwatch().elapsed() > 5000) {
-			System.out.println(this + " timed out.");
-			disconnect();
-			return;
-		}*/
 		getMovementHandler().process();
-	}
-
-	
-	
-
-	/**
-	 * Handles a player command.
-	 * 
-	 * @param keyword
-	 *            the command keyword
-	 * @param args
-	 *            the arguments (separated by spaces)
-	 */
-	public void handleCommand(String keyword, String[] args) {
-		if(keyword.equals("players")) {
-			int count = 0;
-			for(Player player : PlayerHandler.getPlayers()) {
-				if(player != null)
-					count++;
-			}
-			encoder.sendMessage("Players online: " + count);
-		}
-		if (keyword.equals("master")) {
-			for (int i = 0; i < skills.getSkills().length; i++) {
-				for (Skill s : skills.getSkills()) {
-					s.setRealLevelAndExperience(99, true);
-				}
-			}
-			sendSkills();
-		}
-		if (keyword.equals("noob")) {
-			for (int i = 0; i < skills.getSkills().length; i++) {
-				skills.getSkills()[i].setRealLevelAndExperience(i == 3 ? 10 : 1, true);
-			}
-			sendSkills();
-		}
-		if (keyword.equals("empty")) {
-			emptyInventory();
-		}
-		if (keyword.equals("pickup")) {
-			int id = Integer.parseInt(args[0]);
-			int amount = 1;
-			if (args.length > 1) {
-				amount = Integer.parseInt(args[1]);
-			}
-			addInventoryItem(new Item(id, amount));
-			sendInventory();
-		}
-		if (keyword.equals("tele")) {
-			int x = Integer.parseInt(args[0]);
-			int y = Integer.parseInt(args[1]);
-			teleport(new Position(x, y, getPosition().getZ()));
-		}
-		if (keyword.equals("mypos")) {
-			encoder.sendMessage("You are at: " + getPosition());
-		}
+		
+		getTasks().tick();
 	}
 
 	/**
@@ -560,7 +416,7 @@ public class Player extends Entity {
 		setNeedsPlacement(false);
 	}
 
-	public void login() throws Exception {
+	public void login() {
 		int response = Misc.LOGIN_RESPONSE_OK;
 
 		// Check if the player is already logged in.
@@ -568,7 +424,8 @@ public class Player extends Entity {
 			if (player == null) {
 				continue;
 			}
-			if (username.equals(this.username)) {
+			if (username.equals(player.getUsername())) {
+				System.err.println("R");
 				response = Misc.LOGIN_RESPONSE_ACCOUNT_ONLINE;
 			}
 		}
@@ -627,6 +484,22 @@ public class Player extends Entity {
 		
 		encoder.sendMessage("Welcome to RuneSource!");
 
+		getTasks().submit(new Task(5, false) {
+			
+			int cycle = 0;
+			
+			@Override
+			public void execute() {
+				if (cycle == 0) {
+					getEncoder().sendMessage("Hey!");
+				} else {
+					getEncoder().sendMessage("This is a timed message.");
+				}
+				cycle++;
+			}
+			
+		});
+		
 		//System.out.println(this + " has logged in.");
 	}
 
@@ -648,7 +521,7 @@ public class Player extends Entity {
 		PlayerHandler.unregister(this);
 		System.out.println(this + " has logged out.");
 		if (getSlot() != -1) {
-			SaveLoad.save(this);
+			//SaveLoad.save(this);
 		}
 	}
 
@@ -712,24 +585,6 @@ public class Player extends Entity {
 		return needsPlacement;
 	}
 
-	/**
-	 * Sets the player slot.
-	 * 
-	 * @param slot
-	 *            the slot
-	 */
-	public void setSlot(int slot) {
-		this.slot = slot;
-	}
-
-	/**
-	 * Gets the player slot.
-	 * 
-	 * @return the slot
-	 */
-	public int getSlot() {
-		return slot;
-	}
 
 	public String getUsername() {
 		return username;
@@ -963,6 +818,10 @@ public class Player extends Entity {
 		this.encryptor = encryptor;
 	}
 
+	public SkillSet getSkills() {
+		return skills;
+	}
+	
 	/**
 	 * Gets the encryptor.
 	 * 
@@ -974,6 +833,12 @@ public class Player extends Entity {
 	
 	public Channel getChannel() {
 		return channel;
+	}
+
+	@Override
+	public void destroy() {
+		// TODO Auto-generated method stub
+		
 	}
 	
 

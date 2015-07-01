@@ -287,8 +287,8 @@ public final class PlayerUpdating {
 		boolean updateRequired = player.isUpdateRequired();
 		if (player.needsPlacement()) { // Do they need placement?
 			out.writeBit(true); // Yes, there is an update.
-			int posX = player.getPosition().getLocalX(player.getCurrentRegion());
-			int posY = player.getPosition().getLocalY(player.getCurrentRegion());
+			int posX = player.getPosition().getLocalX(player.getPreviousPosition());
+			int posY = player.getPosition().getLocalY(player.getPreviousPosition());
 			appendPlacement(out, posX, posY, player.getPosition().getZ(), player.isResetMovementQueue(), updateRequired);
 			player.setNeedsPlacement(false);
 		} else { // No placement update, check for movement.

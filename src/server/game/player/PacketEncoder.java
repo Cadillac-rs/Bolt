@@ -244,7 +244,7 @@ public class PacketEncoder {
 	 * Refreshes the map region.
 	 */
 	public void sendMapRegion() {
-		player.getCurrentRegion().setAs(player.getPosition());
+		player.getPreviousPosition().setAs(player.getPosition());
 		player.setNeedsPlacement(true);
 		StreamBuffer.OutBuffer out = StreamBuffer.newOutBuffer(5);
 		out.writeHeader(player.getEncryptor(), 73);

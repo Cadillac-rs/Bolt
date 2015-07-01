@@ -1,4 +1,4 @@
-package server.game.entity;
+package server.game.world;
 /*
  * This file is part of RuneSource.
  *
@@ -22,6 +22,7 @@ import java.util.LinkedList;
 import server.game.Position;
 import server.game.npc.Npc;
 import server.game.player.Player;
+import server.game.world.entity.Entity;
 import server.util.Misc;
 
 /**
@@ -52,21 +53,24 @@ public class MovementHandler {
 
 		// Handle the movement.
 		walkPoint = waypoints.poll();
+		
 		if (isRunToggled() || isRunPath()) {
 			runPoint = waypoints.poll();
 		}
+		
 		if (walkPoint != null && walkPoint.getDirection() != -1) {
 			player.getPosition().move(Misc.DIRECTION_DELTA_X[walkPoint.getDirection()], Misc.DIRECTION_DELTA_Y[walkPoint.getDirection()]);
 			player.setPrimaryDirection(walkPoint.getDirection());
 		}
+		
 		if (runPoint != null && runPoint.getDirection() != -1) {
 			player.getPosition().move(Misc.DIRECTION_DELTA_X[runPoint.getDirection()], Misc.DIRECTION_DELTA_Y[runPoint.getDirection()]);
 			player.setSecondaryDirection(runPoint.getDirection());
 		}
 
 		// Check for region changes.
-		int deltaX = player.getPosition().getX() - player.getCurrentRegion().getRegionX() * 8;
-		int deltaY = player.getPosition().getY() - player.getCurrentRegion().getRegionY() * 8;
+		int deltaX = player.getPosition().getX() - player.getPreviousPosition().getRegionX() * 8;
+		int deltaY = player.getPosition().getY() - player.getPreviousPosition().getRegionY() * 8;
 		if (deltaX < 16 || deltaX >= 88 || deltaY < 16 || deltaY > 88) {
 			if (!(player instanceof Npc)) {
 				((Player) player).getEncoder().sendMapRegion();

@@ -10,8 +10,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public class GameProcessor {
 
-	private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors(), new ThreadFactoryBuilder().setNameFormat(
-	        "GameProcessor").build());
+	/**
+	 * The thread which will handle the 600 ms game tick.
+	 */
+	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("GameProcessor").build());
 	
 	public void init() {
 		executor.scheduleAtFixedRate(World.getService(), 0, 600, TimeUnit.MILLISECONDS);

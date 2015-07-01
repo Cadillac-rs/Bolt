@@ -2,15 +2,14 @@ package server.core;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+
+import server.game.player.update.ForkJoinPlayerUpdater;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import server.game.player.PlayerHandler;
 
 /**
  * The main game sequencer that executes game logic every {@code CYCLE_RATE}ms.
@@ -36,7 +35,7 @@ public final class GameService implements Runnable {
     @Override
     public void run() {
         try {
-          PlayerHandler.process();
+          new ForkJoinPlayerUpdater().execute();
         } catch (Throwable t) {
            // XXX: save all players
         }

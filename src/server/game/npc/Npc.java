@@ -1,7 +1,6 @@
 package server.game.npc;
 
-import server.game.entity.Entity;
-import server.game.player.Player;
+import server.game.world.entity.Entity;
 
 /**
  * A non-player-character. Extends Player so that we can share the many
@@ -24,8 +23,7 @@ public class Npc extends Entity {
 	 *            the NPC ID
 	 */
 	public Npc(int npcId) {
-		//super(null); // No selection key.
-		this.setNpcId(npcId);
+		setNpcId(npcId);
 	}
 
 	@Override
@@ -65,6 +63,12 @@ public class Npc extends Entity {
 
 	public boolean isVisible() {
 		return isVisible;
+	}
+
+	@Override
+	public void destroy() {
+		// TODO Auto-generated method stub
+		
 	}
 
 }

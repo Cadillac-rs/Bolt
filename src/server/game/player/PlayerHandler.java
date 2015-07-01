@@ -47,6 +47,8 @@ import server.game.npc.NpcUpdating;
  */
 public class PlayerHandler {
 
+	
+	
 	/** All registered players. */
 	private static final Player[] players = new Player[2048];
 
@@ -63,7 +65,7 @@ public class PlayerHandler {
 	 * 
 	 * @throws Exception
 	 */
-	public static void process() throws Exception {
+	public static void process() {
 
 		/**
 		 * Process logins

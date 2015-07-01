@@ -1,26 +1,28 @@
 package server.net.message;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import server.Server;
-import server.game.Position;
 import server.game.player.Player;
-import server.game.player.PlayerHandler;
 import server.net.ReceivedPacket;
 import server.net.message.in.MessageDecoder;
-import server.net.message.in.impl.*;
-import server.net.util.StreamBuffer;
+import server.net.message.in.impl.AddFriendMessage;
+import server.net.message.in.impl.ButtonMessage;
+import server.net.message.in.impl.ChatMessage;
+import server.net.message.in.impl.CommandMessage;
+import server.net.message.in.impl.EquipItemMessage;
+import server.net.message.in.impl.FriendChatMessage;
+import server.net.message.in.impl.MovementMessage;
+import server.net.message.in.impl.RemoveFriendMessage;
+import server.net.message.in.impl.RemoveIgnoreMessage;
+import server.net.message.in.impl.RemoveItemMessage;
+import server.net.message.in.impl.ToggleChatMessage;
 import server.net.util.StreamBuffer.InBuffer;
-import server.util.Misc;
 
 public class MessageHandler {
 
 	private static final Map<Integer, MessageDecoder> decoders = new HashMap<>();
-	
-	
 	
 	public static void decode(Player player, InBuffer in, ReceivedPacket packet) {
 		
@@ -35,9 +37,12 @@ public class MessageHandler {
 		
 		case 0:
 		case 3:
+		case 77:
 		case 121: // loading screen packet. Region change
 		case 164: // don't know
 		case 177: // rotate camera
+		case 202: // unknown
+		case 226: // unknown
 		case 241: // clicking screen packet
 			break;
 		
